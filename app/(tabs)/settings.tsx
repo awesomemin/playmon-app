@@ -1,30 +1,44 @@
-import { StyleSheet, View, Switch, TouchableOpacity, ScrollView } from 'react-native';
+import { StyleSheet, View, Switch, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useState } from 'react';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar } from '@/components/ui/avatar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useAuth } from '@/contexts/auth-context';
 import { KR } from '@/constants/i18n';
 
 export default function SettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const iconColor = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
 
-  // TODO: Replace with actual auth state from context
-  const isAuthenticated = false;
-  const user = null;
+  const { isAuthenticated, signIn, signOut, isLoading } = useAuth();
 
-  const handleLogin = () => {
-    // TODO: Open login modal
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      const result = await signIn();
+      if (!result.success && result.error) {
+        Alert.alert('로그인 실패', result.error);
+      }
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
-  const handleLogout = () => {
-    // TODO: Sign out
+  const handleLogout = async () => {
+    Alert.alert(
+      '로그아웃',
+      '정말 로그아웃 하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '로그아웃', style: 'destructive', onPress: signOut },
+      ]
+    );
   };
 
   return (
@@ -36,12 +50,10 @@ export default function SettingsScreen() {
             {KR.settings.account}
           </ThemedText>
 
-          {isAuthenticated && user ? (
+          {isAuthenticated ? (
             <View style={styles.accountInfo}>
-              <Avatar uri={null} size={56} />
               <View style={styles.accountDetails}>
-                <ThemedText type="defaultSemiBold">User Name</ThemedText>
-                <ThemedText style={styles.email}>user@email.com</ThemedText>
+                <ThemedText type="defaultSemiBold">로그인됨</ThemedText>
               </View>
               <Button
                 title={KR.auth.logout}
@@ -56,9 +68,10 @@ export default function SettingsScreen() {
                 {KR.settings.notLoggedIn}
               </ThemedText>
               <Button
-                title={KR.auth.googleSignIn}
+                title={isLoggingIn ? '로그인 중...' : KR.auth.googleSignIn}
                 onPress={handleLogin}
                 style={styles.loginButton}
+                disabled={isLoggingIn || isLoading}
               />
             </View>
           )}
@@ -130,14 +143,11 @@ const styles = StyleSheet.create({
   accountInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 16,
   },
   accountDetails: {
     flex: 1,
-  },
-  email: {
-    opacity: 0.7,
-    fontSize: 14,
   },
   logoutButton: {
     paddingHorizontal: 16,

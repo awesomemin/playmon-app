@@ -1,8 +1,7 @@
 export interface Player {
-  puuid: string;
+  id: string;
   gameName: string;
   tagLine: string;
-  summonerId: string;
   summonerLevel: number;
   profileIconId: number;
 }

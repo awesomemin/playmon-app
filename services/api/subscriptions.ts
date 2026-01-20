@@ -1,27 +1,25 @@
 import { apiClient } from './client';
-import type { Subscription } from '@/types/subscription';
+import type { SubscriptionResponse } from '@/types/subscription';
 
 export const subscriptionsApi = {
   /**
-   * Get all subscriptions for the current user
-   */
-  getAll: async (): Promise<Subscription[]> => {
-    return apiClient<Subscription[]>('/subscriptions', { requiresAuth: true });
-  },
-
-  /**
    * Subscribe to a player
+   * POST /players/{playerId}/subscriptions
    */
-  subscribe: async (puuid: string, riotId: string): Promise<Subscription> => {
-    return apiClient<Subscription>('/subscriptions', {
+  subscribe: async (
+    playerId: string,
+    fcmToken?: string
+  ): Promise<SubscriptionResponse> => {
+    return apiClient<SubscriptionResponse>(`/players/${playerId}/subscriptions`, {
       method: 'POST',
-      body: { puuid, riotId },
+      body: fcmToken ? { fcm_token: fcmToken } : undefined,
       requiresAuth: true,
     });
   },
 
   /**
    * Unsubscribe from a player
+   * DELETE /subscriptions/{subscriptionId}
    */
   unsubscribe: async (subscriptionId: string): Promise<void> => {
     return apiClient(`/subscriptions/${subscriptionId}`, {

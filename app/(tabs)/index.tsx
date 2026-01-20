@@ -7,24 +7,19 @@ import { ThemedView } from '@/components/themed-view';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { KR } from '@/constants/i18n';
 import { RIOT_CDN } from '@/constants/api';
 import { parseRiotId, formatRiotId } from '@/utils/riot-id';
-import { getRankColor, RANK_NAMES_KR } from '@/utils/rank';
-import type { Player, RankTier } from '@/types/player';
-
-interface SearchResult extends Player {
-  tier?: RankTier | null;
-}
+import { playersApi } from '@/services/api/players';
+import type { Player } from '@/types/player';
 
 export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
+  const [searchResult, setSearchResult] = useState<Player | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
@@ -42,29 +37,20 @@ export default function SearchScreen() {
     setSearchResult(null);
 
     try {
-      // TODO: Replace with actual API call
-      // Simulating API call for now
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const result = await playersApi.search(parsed.gameName, parsed.tagLine);
 
-      // Mock result
-      const mockResult: SearchResult = {
-        puuid: 'mock-puuid',
-        gameName: parsed.gameName,
-        tagLine: parsed.tagLine,
-        summonerId: 'mock-summoner-id',
-        summonerLevel: 350,
-        profileIconId: 5367,
-        tier: 'DIAMOND',
-      };
+      if (result) {
+        setSearchResult(result);
 
-      setSearchResult(mockResult);
-
-      // Add to recent searches
-      const riotId = formatRiotId(parsed.gameName, parsed.tagLine);
-      setRecentSearches((prev) => {
-        const filtered = prev.filter((s) => s !== riotId);
-        return [riotId, ...filtered].slice(0, 10);
-      });
+        // Add to recent searches
+        const riotId = formatRiotId(parsed.gameName, parsed.tagLine);
+        setRecentSearches((prev) => {
+          const filtered = prev.filter((s) => s !== riotId);
+          return [riotId, ...filtered].slice(0, 10);
+        });
+      } else {
+        setError(KR.errors.playerNotFound);
+      }
     } catch {
       setError(KR.errors.playerNotFound);
     } finally {
@@ -72,7 +58,7 @@ export default function SearchScreen() {
     }
   }, [searchQuery]);
 
-  const handlePlayerPress = (player: SearchResult) => {
+  const handlePlayerPress = (player: Player) => {
     const riotId = formatRiotId(player.gameName, player.tagLine);
     router.push(`/player/${encodeURIComponent(riotId)}`);
   };
@@ -100,13 +86,6 @@ export default function SearchScreen() {
                 {KR.profile.level} {searchResult.summonerLevel}
               </ThemedText>
             </View>
-            {searchResult.tier && (
-              <Badge
-                text={RANK_NAMES_KR[searchResult.tier]}
-                backgroundColor={getRankColor(searchResult.tier)}
-                size="small"
-              />
-            )}
             <IconSymbol name="chevron.right" size={20} color={iconColor} />
           </View>
         </Card>
