@@ -1,5 +1,6 @@
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.0.52:8080';
+  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  'https://quincuncial-ngan-impededly.ngrok-free.dev';
 
 export const RIOT_CDN = {
   profileIcon: (iconId: number, version = '15.2.1') =>
