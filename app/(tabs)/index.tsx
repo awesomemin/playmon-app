@@ -38,6 +38,7 @@ export default function SearchScreen() {
 
     try {
       const result = await playersApi.search(parsed.gameName, parsed.tagLine);
+      console.log('[SearchScreen] API result:', JSON.stringify(result, null, 2));
 
       if (result) {
         setSearchResult(result);

@@ -10,9 +10,12 @@ export const playersApi = {
     const encodedName = encodeURIComponent(gameName);
     const encodedTag = encodeURIComponent(tagLine);
     try {
-      return await apiClient<Player>(`/players/${encodedName}/${encodedTag}`);
+      const result = await apiClient<Player>(`/players/${encodedName}/${encodedTag}`);
+      return result;
     } catch (error) {
-      // Return null if player not found (404)
+      // Log the actual error for debugging
+      console.error('[playersApi.search] Error:', error);
+      // Return null if player not found (404) or other error
       return null;
     }
   },

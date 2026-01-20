@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 
@@ -11,6 +12,8 @@ export interface AvatarProps {
 }
 
 export function Avatar({ uri, size = 48, fallbackIcon = 'person.fill' }: AvatarProps) {
+  const [hasError, setHasError] = useState(false);
+
   const backgroundColor = useThemeColor(
     { light: '#E0E0E0', dark: '#3A3A3C' },
     'background'
@@ -27,7 +30,7 @@ export function Avatar({ uri, size = 48, fallbackIcon = 'person.fill' }: AvatarP
     backgroundColor,
   };
 
-  if (!uri) {
+  if (!uri || hasError) {
     return (
       <View style={[styles.container, containerStyle]}>
         <IconSymbol name={fallbackIcon as any} size={size * 0.5} color={iconColor} />
@@ -41,6 +44,10 @@ export function Avatar({ uri, size = 48, fallbackIcon = 'person.fill' }: AvatarP
       style={[styles.image, containerStyle]}
       contentFit="cover"
       transition={200}
+      onError={() => {
+        console.error('[Avatar] Failed to load image:', uri);
+        setHasError(true);
+      }}
     />
   );
 }

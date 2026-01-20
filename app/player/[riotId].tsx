@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
@@ -5,50 +6,47 @@ import { Image } from 'expo-image';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { KR } from '@/constants/i18n';
 import { RIOT_CDN } from '@/constants/api';
 import { parseRiotId } from '@/utils/riot-id';
-import { getRankColor, formatRankTier, formatWinRate } from '@/utils/rank';
-import type { PlayerProfile, RankInfo } from '@/types/player';
+import { playersApi } from '@/services/api/players';
+import type { Player } from '@/types/player';
 
 export default function PlayerProfileScreen() {
   const { riotId } = useLocalSearchParams<{ riotId: string }>();
+  const [player, setPlayer] = useState<Player | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Parse the riotId from URL
   const parsed = riotId ? parseRiotId(decodeURIComponent(riotId)) : null;
 
-  // TODO: Replace with actual API call using usePlayerProfile hook
-  const isLoading = false;
-  const profile: PlayerProfile | null = parsed
-    ? {
-        puuid: 'mock-puuid',
-        gameName: parsed.gameName,
-        tagLine: parsed.tagLine,
-        summonerId: 'mock-summoner-id',
-        summonerLevel: 350,
-        profileIconId: 5367,
-        soloRank: {
-          queueType: 'RANKED_SOLO_5x5',
-          tier: 'DIAMOND',
-          rank: 'II',
-          leaguePoints: 45,
-          wins: 150,
-          losses: 120,
-        },
-        flexRank: {
-          queueType: 'RANKED_FLEX_SR',
-          tier: 'PLATINUM',
-          rank: 'I',
-          leaguePoints: 80,
-          wins: 50,
-          losses: 40,
-        },
+  useEffect(() => {
+    const fetchPlayer = async () => {
+      if (!parsed) {
+        setIsLoading(false);
+        setError(KR.errors.playerNotFound);
+        return;
       }
-    : null;
+
+      try {
+        const result = await playersApi.search(parsed.gameName, parsed.tagLine);
+        if (result) {
+          setPlayer(result);
+        } else {
+          setError(KR.errors.playerNotFound);
+        }
+      } catch {
+        setError(KR.errors.generic);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPlayer();
+  }, [parsed?.gameName, parsed?.tagLine]);
 
   // TODO: Replace with actual subscription state from context
   const isSubscribed = false;
@@ -66,53 +64,13 @@ export default function PlayerProfileScreen() {
     return <LoadingSpinner fullScreen />;
   }
 
-  if (!profile || !parsed) {
+  if (!player || !parsed || error) {
     return (
       <ThemedView style={styles.errorContainer}>
-        <ThemedText>{KR.errors.playerNotFound}</ThemedText>
+        <ThemedText>{error || KR.errors.playerNotFound}</ThemedText>
       </ThemedView>
     );
   }
-
-  const renderRankCard = (rank: RankInfo | null, title: string) => {
-    if (!rank) {
-      return (
-        <Card style={styles.rankCard}>
-          <ThemedText type="defaultSemiBold" style={styles.rankTitle}>
-            {title}
-          </ThemedText>
-          <ThemedText style={styles.unranked}>{KR.profile.unranked}</ThemedText>
-        </Card>
-      );
-    }
-
-    return (
-      <Card style={styles.rankCard}>
-        <ThemedText type="defaultSemiBold" style={styles.rankTitle}>
-          {title}
-        </ThemedText>
-        <View style={styles.rankContent}>
-          <Image
-            source={{ uri: RIOT_CDN.rankEmblem(rank.tier) }}
-            style={styles.rankEmblem}
-            contentFit="contain"
-          />
-          <View style={styles.rankInfo}>
-            <Badge
-              text={formatRankTier(rank.tier, rank.rank)}
-              backgroundColor={getRankColor(rank.tier)}
-            />
-            <ThemedText style={styles.lpText}>
-              {rank.leaguePoints} {KR.profile.lp}
-            </ThemedText>
-            <ThemedText style={styles.winLossText}>
-              {formatWinRate(rank)}
-            </ThemedText>
-          </View>
-        </View>
-      </Card>
-    );
-  };
 
   return (
     <ParallaxScrollView
@@ -120,7 +78,7 @@ export default function PlayerProfileScreen() {
       headerImage={
         <View style={styles.headerContent}>
           <Image
-            source={{ uri: RIOT_CDN.profileIcon(profile.profileIconId) }}
+            source={{ uri: RIOT_CDN.profileIcon(player.profileIconId) }}
             style={styles.profileIcon}
             contentFit="cover"
           />
@@ -129,18 +87,12 @@ export default function PlayerProfileScreen() {
     >
       {/* Player Info */}
       <ThemedView style={styles.playerInfo}>
-        <ThemedText type="title">{profile.gameName}</ThemedText>
-        <ThemedText style={styles.tagLine}>#{profile.tagLine}</ThemedText>
+        <ThemedText type="title">{player.gameName}</ThemedText>
+        <ThemedText style={styles.tagLine}>#{player.tagLine}</ThemedText>
         <ThemedText style={styles.level}>
-          {KR.profile.level} {profile.summonerLevel}
+          {KR.profile.level} {player.summonerLevel}
         </ThemedText>
       </ThemedView>
-
-      {/* Rank Display */}
-      <View style={styles.rankContainer}>
-        {renderRankCard(profile.soloRank, KR.profile.soloRank)}
-        {renderRankCard(profile.flexRank, KR.profile.flexRank)}
-      </View>
 
       {/* Subscribe Button */}
       <View style={styles.subscribeContainer}>
@@ -192,41 +144,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.6,
     marginTop: 8,
-  },
-  rankContainer: {
-    gap: 16,
-    marginBottom: 24,
-  },
-  rankCard: {
-    padding: 16,
-  },
-  rankTitle: {
-    marginBottom: 12,
-  },
-  rankContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  rankEmblem: {
-    width: 80,
-    height: 80,
-  },
-  rankInfo: {
-    flex: 1,
-    gap: 8,
-  },
-  lpText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  winLossText: {
-    fontSize: 14,
-    opacity: 0.7,
-  },
-  unranked: {
-    opacity: 0.5,
-    fontStyle: 'italic',
   },
   subscribeContainer: {
     marginTop: 8,

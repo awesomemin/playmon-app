@@ -36,14 +36,27 @@ export async function apiClient<T>(
     }
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const url = `${API_BASE_URL}${endpoint}`;
+  console.log('[apiClient] Request:', url);
+
+  const response = await fetch(url, {
     ...fetchConfig,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
 
+  // Handle empty responses
+  const text = await response.text();
+  console.log('[apiClient] Response status:', response.status, 'body preview:', text.substring(0, 200));
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
+    // Try to parse as JSON, otherwise use text
+    let errorData: any = {};
+    try {
+      errorData = JSON.parse(text);
+    } catch {
+      errorData = { message: text.substring(0, 100) };
+    }
     throw new ApiError(
       response.status,
       errorData.message || `HTTP Error ${response.status}`,
@@ -51,10 +64,14 @@ export async function apiClient<T>(
     );
   }
 
-  // Handle empty responses
-  const text = await response.text();
   if (!text) {
     return {} as T;
+  }
+
+  // Check if response is HTML instead of JSON
+  if (text.trim().startsWith('<')) {
+    console.error('[apiClient] Received HTML instead of JSON:', text.substring(0, 200));
+    throw new ApiError(500, 'Server returned HTML instead of JSON');
   }
 
   return JSON.parse(text);
